@@ -1,23 +1,23 @@
 {% macro generate_schema_name(custom_schema_name, node) %}
 
-    {% set default_schema = target.schema %}
+    {% set default_schema = target.schema | trim %}
+    {% set configured_schema = custom_schema_name | trim if custom_schema_name is not none else none %}
 
-    {# seeds go in a global `raw` schema #}
-    {% if node.resource_type == 'seed' %}
-        {{ custom_schema_name | trim }}
-
-    {# non-specified schemas go to the default target schema #}
-    {% elif custom_schema_name is none %}
+    {# No explicit schema config: fall back to the target schema. #}
+    {% if configured_schema is none %}
         {{ default_schema }}
 
+    {# Keep shared raw and prod schemas stable across environments. #}
+    {% elif configured_schema in ['raw', 'prod'] %}
+        {{ configured_schema }}
 
-    {# specified custom schema names go to the schema name prepended with the the default schema name in prod (as this is an example project we want the schemas clearly labeled) #}
-    {% elif target.name == 'prod' %}
-        {{ default_schema }}_{{ custom_schema_name | trim }}
+    {# In development/CI, namespace logical schemas by user/schema to avoid collisions. #}
+    {% elif target.name != 'prod' %}
+        {{ configured_schema }}_{{ default_schema }}
 
-    {# specified custom schemas go to the default target schema for non-prod targets #}
+    {# In prod, use the configured schema directly. #}
     {% else %}
-        {{ default_schema }}
+        {{ configured_schema }}
     {% endif %}
 
 {% endmacro %}
